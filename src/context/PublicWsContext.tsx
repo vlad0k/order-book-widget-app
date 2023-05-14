@@ -4,36 +4,59 @@ import React, {
   ReactNode,
   useCallback,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
 interface IPublicWsContext {
   ws?: WebSocket | null;
   sendMessage: (message: Record<string, any>) => void;
+  reconnectWs: () => void;
+  isOnline: boolean;
 }
 
 export const PublicWsContext = createContext<IPublicWsContext>({
   sendMessage: () => {},
+  reconnectWs: () => {},
+  isOnline: false,
 });
 
 export const PublicWsContextProvider: FC<{ children?: ReactNode }> = ({
   children,
 }) => {
-  const [ws, setWs] = useState<WebSocket | null>(
-    new WebSocket(process.env.REACT_APP_BITFINEX_PUBLIC_WS_URL || "")
+  const [ws, setWs] = useState<WebSocket | null>(null);
+
+  const isOnline = useMemo(
+    () => ws?.readyState === WebSocket.OPEN,
+    [ws?.readyState]
   );
 
-  useEffect(() => {
-    if (!ws && navigator.onLine) {
-      setWs(new WebSocket(process.env.REACT_APP_BITFINEX_PUBLIC_WS_URL || ""));
-    }
+  const reconnectWs = useCallback(() => {
+    ws?.close();
+
+    const newWs = new WebSocket(
+      process.env.REACT_APP_BITFINEX_PUBLIC_WS_URL || ""
+    );
+
+    newWs.addEventListener("open", () => {
+      console.log("WS open");
+      setWs(newWs);
+    });
+
+    newWs.addEventListener("close", () => {
+      console.log("Ws closed");
+      setWs(null);
+    });
+
+    newWs.addEventListener("error", () => {
+      console.log("Ws error");
+      setWs(null);
+    });
   }, [ws]);
 
   const sendMessage = useCallback(
     (message: Record<string, any>) => {
-      console.log(message);
-
-      if (ws?.OPEN) {
+      if (ws?.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify(message));
       }
     },
@@ -41,34 +64,32 @@ export const PublicWsContextProvider: FC<{ children?: ReactNode }> = ({
   );
 
   useEffect(() => {
-    ws?.addEventListener("open", () => {
-      console.log("WS open");
-    });
+    const offlineListener = () => {
+      ws?.close();
+    };
 
-    ws?.addEventListener("close", () => {
-      setWs(null);
-      console.log("Ws closed");
-    });
+    const onlineListener = () => {
+      reconnectWs();
+    };
 
-    ws?.addEventListener("error", () => {
-      setWs(null);
-      console.log("Ws error");
-    });
-  }, [ws]);
+    window.addEventListener("offline", offlineListener);
+    window.addEventListener("online", onlineListener);
+
+    return () => {
+      window.removeEventListener("offline", offlineListener);
+      window.removeEventListener("online", onlineListener);
+    };
+  }, [ws, reconnectWs]);
 
   useEffect(() => {
-    window.addEventListener("offline", () => {
-      ws?.close();
-      setWs(null);
-    });
-
-    window.addEventListener("online", () => {
-      setWs(new WebSocket(process.env.REACT_APP_BITFINEX_PUBLIC_WS_URL || ""));
-    });
-  });
+    reconnectWs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
-    <PublicWsContext.Provider value={{ ws, sendMessage }}>
+    <PublicWsContext.Provider
+      value={{ ws, sendMessage, reconnectWs, isOnline }}
+    >
       {children}
     </PublicWsContext.Provider>
   );

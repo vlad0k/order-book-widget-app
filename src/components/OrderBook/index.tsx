@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -10,6 +10,7 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  Typography,
 } from "@mui/material";
 import { useSelector } from "react-redux";
 import {
@@ -21,31 +22,73 @@ import {
 import useOrderBook from "hooks/useOrderBook";
 import useDispatch from "hooks/useDispatch";
 import { updateSymbol } from "store/orderBook";
+import { PublicWsContext } from "context/PublicWsContext";
 
 const OrderBook = () => {
+  const [precision, setPrecision] = useState(0);
+
   const symbol = useSelector(selectOrderBookSymbol);
 
   const dispatch = useDispatch();
 
-  const asksData = useSelector(selectOrderBookAsks);
-  const bidsData = useSelector(selectOrderBookBids);
+  const asks = useSelector(selectOrderBookAsks);
+  const bids = useSelector(selectOrderBookBids);
 
-  const { updatePrecision, precision } = useOrderBook();
+  const askRows = useMemo(() => {
+    let currentTotal = 0;
+
+    return Object.entries(asks)
+      .reverse()
+      .map(([price, { count, amount }]) => {
+        currentTotal += amount;
+
+        return (
+          <TableRow key={price}>
+            <TableCell>{count}</TableCell>
+            <TableCell>{amount}</TableCell>
+            <TableCell>{currentTotal}</TableCell>
+            <TableCell>{price}</TableCell>
+          </TableRow>
+        );
+      });
+  }, [asks]);
+
+  const bidsRows = useMemo(() => {
+    let currentTotal = 0;
+
+    return Object.entries(bids).map(([price, { count, amount }]) => {
+      currentTotal += amount;
+
+      return (
+        <TableRow key={price}>
+          <TableCell>{count}</TableCell>
+          <TableCell>{amount}</TableCell>
+          <TableCell>{currentTotal}</TableCell>
+          <TableCell>{price}</TableCell>
+        </TableRow>
+      );
+    });
+  }, [bids]);
+
+  const { reconnectWs, isOnline } = useContext(PublicWsContext);
+
+  useOrderBook(precision);
 
   const increasePresicion = () => {
-    updatePrecision((prev) => (prev < 4 ? prev + 1 : prev));
+    setPrecision((prev) => (prev < 4 ? prev + 1 : prev));
   };
 
   const decreasePresicion = () => {
-    updatePrecision((prev) => (prev > 0 ? prev - 1 : prev));
+    setPrecision((prev) => (prev > 0 ? prev - 1 : prev));
   };
 
   return (
     <Box>
-      <Button onClick={decreasePresicion} disabled={precision === 0}>
-        {"<-"} .0{" "}
-      </Button>
       <Button onClick={increasePresicion} disabled={precision === 4}>
+        {"<-"} .0
+      </Button>
+
+      <Button onClick={decreasePresicion} disabled={precision === 0}>
         .00 {"->"}
       </Button>
 
@@ -56,6 +99,12 @@ const OrderBook = () => {
         <MenuItem value="tBTCUSD">BTCUSD</MenuItem>
         <MenuItem value="tETHUSD">ETHUSD</MenuItem>
       </Select>
+
+      <Typography color={isOnline ? "green" : "error"} display="inline" ml={2}>
+        {isOnline ? "Online" : "Disconnected"}
+      </Typography>
+
+      {!isOnline && <Button onClick={reconnectWs}>Reconnect</Button>}
 
       <Box display="flex" gap={1} p={1}>
         <Paper sx={{ flex: 1 }}>
@@ -68,16 +117,7 @@ const OrderBook = () => {
                 <TableCell>Price</TableCell>
               </TableRow>
             </TableHead>
-            <TableBody>
-              {asksData.map(({ count, price, total, amount }) => (
-                <TableRow key={`${count} ${price} ${total} ${amount}`}>
-                  <TableCell>{count}</TableCell>
-                  <TableCell>{amount}</TableCell>
-                  <TableCell>{total}</TableCell>
-                  <TableCell>{price}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
+            <TableBody>{askRows}</TableBody>
           </Table>
         </Paper>
 
@@ -85,22 +125,13 @@ const OrderBook = () => {
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>Count</TableCell>
-                <TableCell>Amount</TableCell>
-                <TableCell>Total</TableCell>
                 <TableCell>Price</TableCell>
+                <TableCell>Total</TableCell>
+                <TableCell>Amount</TableCell>
+                <TableCell>Count</TableCell>
               </TableRow>
             </TableHead>
-            <TableBody>
-              {bidsData.map(({ count, price, total, amount }) => (
-                <TableRow key={`${count} ${price} ${total} ${amount}`}>
-                  <TableCell>{count}</TableCell>
-                  <TableCell>{amount}</TableCell>
-                  <TableCell>{total}</TableCell>
-                  <TableCell>{price}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
+            <TableBody>{bidsRows}</TableBody>
           </Table>
         </Paper>
       </Box>
