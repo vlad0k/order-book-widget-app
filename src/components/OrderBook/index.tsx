@@ -1,12 +1,4 @@
 import React, { useContext, useMemo, useState } from "react";
-import {
-  Box,
-  Button,
-  MenuItem,
-  Paper,
-  Select,
-  Typography,
-} from "@mui/material";
 import { useSelector } from "react-redux";
 import {
   selectOrderBookAsks,
