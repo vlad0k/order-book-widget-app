@@ -1,0 +1,24 @@
+.wrapper {
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+}
+
+.circle {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+
+.red {
+  background-color: red;
+}
+
+.green {
+  background-color: green;
+}
+
+.textIndicator {
+  margin-right: 8px;
+}

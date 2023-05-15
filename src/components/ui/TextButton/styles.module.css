@@ -1,0 +1,12 @@
+.button {
+  border: none;
+  outline: none;
+  background: none;
+  color: #fff;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.5;
+}

@@ -1,0 +1,20 @@
+.wrapper {
+  padding: 8px;
+  background-color: #1c2c3c;
+  color: #fff;
+}
+
+.tablesContainer {
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+}
+
+.tableWrapper {
+  flex: 1;
+}
+
+.topActions {
+  display: flex;
+  justify-content: space-between;
+}

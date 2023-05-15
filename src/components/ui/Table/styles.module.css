@@ -1,0 +1,10 @@
+.table {
+  font-size: 11px;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.cell {
+  padding: 0 8px;
+  width: auto;
+}

@@ -5,11 +5,6 @@ import {
   MenuItem,
   Paper,
   Select,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
   Typography,
 } from "@mui/material";
 import { useSelector } from "react-redux";
@@ -23,6 +18,50 @@ import useOrderBook from "hooks/useOrderBook";
 import useDispatch from "hooks/useDispatch";
 import { updateSymbol } from "store/orderBook";
 import { PublicWsContext } from "context/PublicWsContext";
+import Table, { ITableConfig } from "components/ui/Table";
+import { generateOrderBookTableRowsWithTotal } from "utils/generateOrderBookTableRowsWithTotal";
+import roundToPrecition from "utils/roundToPrecition";
+
+import classes from "./styles.module.css";
+import TextButton from "components/ui/TextButton";
+import OnlineIndicator from "components/OnlineIndicator";
+
+const tableConfigBase: ITableConfig[] = [
+  {
+    field: "count",
+    title: "COUNT",
+  },
+  {
+    field: "amount",
+    title: "AMOUNT",
+    renderCell: (v) => roundToPrecition(+v, 0.0001),
+  },
+  {
+    field: "total",
+    title: "TOTAL",
+    renderCell: (v) => roundToPrecition(+v, 0.0001),
+  },
+];
+
+const asksTableConfig: ITableConfig[] = [
+  ...tableConfigBase,
+  {
+    field: "price",
+    title: "PRICE",
+    renderCell: (v) => v.toLocaleString(),
+    cellStyle: { textAlign: "right" },
+  },
+];
+
+const bidsTableConfig: ITableConfig[] = [
+  {
+    field: "price",
+    title: "PRICE",
+    renderCell: (v) => v.toLocaleString(),
+    cellStyle: { textAlign: "left" },
+  },
+  ...tableConfigBase.reverse(),
+];
 
 const OrderBook = () => {
   const [precision, setPrecision] = useState(0);
@@ -34,41 +73,15 @@ const OrderBook = () => {
   const asks = useSelector(selectOrderBookAsks);
   const bids = useSelector(selectOrderBookBids);
 
-  const askRows = useMemo(() => {
-    let currentTotal = 0;
+  const askRows = useMemo(
+    () => generateOrderBookTableRowsWithTotal(asks),
+    [asks]
+  );
 
-    return Object.entries(asks)
-      .reverse()
-      .map(([price, { count, amount }]) => {
-        currentTotal += amount;
-
-        return (
-          <TableRow key={price}>
-            <TableCell>{count}</TableCell>
-            <TableCell>{amount}</TableCell>
-            <TableCell>{currentTotal}</TableCell>
-            <TableCell>{price}</TableCell>
-          </TableRow>
-        );
-      });
-  }, [asks]);
-
-  const bidsRows = useMemo(() => {
-    let currentTotal = 0;
-
-    return Object.entries(bids).map(([price, { count, amount }]) => {
-      currentTotal += amount;
-
-      return (
-        <TableRow key={price}>
-          <TableCell>{count}</TableCell>
-          <TableCell>{amount}</TableCell>
-          <TableCell>{currentTotal}</TableCell>
-          <TableCell>{price}</TableCell>
-        </TableRow>
-      );
-    });
-  }, [bids]);
+  const bidsRows = useMemo(
+    () => generateOrderBookTableRowsWithTotal(bids),
+    [bids]
+  );
 
   const { reconnectWs, isOnline } = useContext(PublicWsContext);
 
@@ -83,59 +96,41 @@ const OrderBook = () => {
   };
 
   return (
-    <Box>
-      <Button onClick={increasePresicion} disabled={precision === 4}>
-        {"<-"} .0
-      </Button>
+    <div className={classes.wrapper}>
+      <div className={classes.topActions}>
+        <select
+          value={symbol || ""}
+          onChange={(e) => dispatch(updateSymbol(e.target.value || ""))}
+        >
+          <option value="tBTCUSD">BTCUSD</option>
+          <option value="tETHUSD">ETHUSD</option>
+        </select>
 
-      <Button onClick={decreasePresicion} disabled={precision === 0}>
-        .00 {"->"}
-      </Button>
+        <div>
+          <TextButton onClick={increasePresicion} disabled={precision === 4}>
+            {"<-"} .0
+          </TextButton>
 
-      <Select
-        value={symbol}
-        onChange={(e) => dispatch(updateSymbol(e.target.value || ""))}
-      >
-        <MenuItem value="tBTCUSD">BTCUSD</MenuItem>
-        <MenuItem value="tETHUSD">ETHUSD</MenuItem>
-      </Select>
+          <TextButton onClick={decreasePresicion} disabled={precision === 0}>
+            .00 {"->"}
+          </TextButton>
+        </div>
+      </div>
 
-      <Typography color={isOnline ? "green" : "error"} display="inline" ml={2}>
-        {isOnline ? "Online" : "Disconnected"}
-      </Typography>
+      <div className={classes.tablesContainer}>
+        <div className={classes.tableWrapper}>
+          <Table config={asksTableConfig} data={askRows} />
+        </div>
 
-      {!isOnline && <Button onClick={reconnectWs}>Reconnect</Button>}
+        <div className={classes.tableWrapper}>
+          <Table config={bidsTableConfig} data={bidsRows} />
+        </div>
+      </div>
 
-      <Box display="flex" gap={1} p={1}>
-        <Paper sx={{ flex: 1 }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Count</TableCell>
-                <TableCell>Amount</TableCell>
-                <TableCell>Total</TableCell>
-                <TableCell>Price</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>{askRows}</TableBody>
-          </Table>
-        </Paper>
-
-        <Paper sx={{ flex: 1 }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Price</TableCell>
-                <TableCell>Total</TableCell>
-                <TableCell>Amount</TableCell>
-                <TableCell>Count</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>{bidsRows}</TableBody>
-          </Table>
-        </Paper>
-      </Box>
-    </Box>
+      <div>
+        <OnlineIndicator isOnline={isOnline} onReconnect={reconnectWs} />
+      </div>
+    </div>
   );
 };
 
